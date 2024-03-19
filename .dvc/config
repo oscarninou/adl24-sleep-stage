@@ -1,0 +1,4 @@
+[core]
+    remote = mylocalstorage
+['remote "mylocalstorage"']
+    url = /Users/constouille/Documents/GitHub/adl24-sleep-stage/data

@@ -16,6 +16,7 @@ jupyter = "^1.0.0"
 mne = "^1.6.1"
 huggingface = "^0.0.1"
 transformers = "^4.38.2"
+dvc = "^3.48.4"
 
 
 [build-system]
