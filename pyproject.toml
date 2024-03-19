@@ -1,0 +1,23 @@
+[tool.poetry]
+name = "dl-sleep-project"
+version = "0"
+description = "Venv for DL_project"
+authors = ["Constant Bourdrez"]
+license = "No"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+numpy = "^1.26.4"
+matplotlib = "^3.8.3"
+seaborn = "^0.13.2"
+torch = "^2.2.1"
+jupyter = "^1.0.0"
+mne = "^1.6.1"
+huggingface = "^0.0.1"
+transformers = "^4.38.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
