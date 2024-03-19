@@ -17,6 +17,7 @@ mne = "^1.6.1"
 huggingface = "^0.0.1"
 transformers = "^4.38.2"
 dvc = "^3.48.4"
+torchvision = "^0.17.1"
 
 
 [build-system]
