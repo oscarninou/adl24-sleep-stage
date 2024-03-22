@@ -1,4 +1,6 @@
 [core]
-    remote = mylocalstorage
+    remote = gcs
 ['remote "mylocalstorage"']
     url = /Users/constouille/Documents/GitHub/adl24-sleep-stage/data
+['remote "gcs"']
+    url = gs://data_dl_3a
