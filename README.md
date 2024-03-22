@@ -15,7 +15,7 @@ These subprojects are not mutually exclusive and they can be mixed.
 
 ## Fetch data from dvc and GCP initialization
 
-We used dvc in order to track data and to put our trained_models in the cloud so as to not have the data on git (in terms of privacy and lightness of the repo). First, an account needs to be created on Google Cloud Computing. Then initialize the gcp CLI while following these instructions: https://cloud.google.com/sdk/docs/install-sdk?hl=fr
+We used dvc in order to track data and to put our trained models in the cloud so as to not have the data on git (in terms of privacy and lightness of the repo). First, an account needs to be created on Google Cloud Computing. Then initialize the gcp CLI while following these instructions: https://cloud.google.com/sdk/docs/install-sdk?hl=fr
 
 If your account is authorized, you can now fetch the latest version of the data using:
 ```bash
@@ -23,7 +23,7 @@ dvc pull
 ```
 To put data in the cloud just run:
 ```bash
-dvc add filpeath_to_data
+dvc add filepath_to_data
 dvc push
 git add .dvc
 git commit -m'added data'
