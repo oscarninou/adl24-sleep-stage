@@ -18,7 +18,7 @@ class RandomProjectionQuantizer(nn.Module):
             th.manual_seed(random_state)
 
     @th.no_grad()
-    def forward(self, input_values: th.Tensor, mask_time_indices: th.Tensor) -> th.Tensor:
+    def forward(self, input_values: th.Tensor) -> th.Tensor:
         """
         Args:
             input_values (th.Tensor): with shape `(B, L, D)`
@@ -52,7 +52,7 @@ class BestRqFramework(nn.Module):
         self.random_projection_quantizer = RandomProjectionQuantizer(input_feature_size, encoder_hidden_size, num_code_books, random_state=random_state, device=device)
         self.random_projection_quantizer.to(device)  # Ajouter au périphérique
         self.encoder = encoder.to(device)  # Ajouter au périphérique
-        self.out_linear = nn.Linear(600, 1).to(device)  # Ajouter au périphérique
+        self.out_linear = nn.Linear(200, 1).to(device)  # Ajouter au périphérique
         self.num_time_steps = int(mask_time // (stride_time * self.K))
         self.mask_prob = mask_prob
         self.mask_time = mask_time
@@ -65,7 +65,7 @@ class BestRqFramework(nn.Module):
         return data_loader
 
 
-    def forward(self, input_values: th.Tensor):
+    def forward(self, input_values: th.Tensor, masking = True):
         """
         Args:
             input_values (th.Tensor): with shape `(B, T, D)`
@@ -77,17 +77,20 @@ class BestRqFramework(nn.Module):
 
         input_values = self.layer_norm(input_values)
 
-        masked_input_values, time_mask_indices = self.masking(input_values.clone())
+        if masking:
+            masked_input_values, time_mask_indices = self.masking(input_values.clone())
+        else:
+            masked_input_values, time_mask_indices = input_values.clone(), th.zeros(input_values.shape)
 
-        labels = self.random_projection_quantizer(input_values, time_mask_indices)
+        labels = self.random_projection_quantizer(input_values)
 
         encoder_out = self.encoder(masked_input_values.view(1, -1, 600))
 
-        targets = encoder_out[time_mask_indices]
+        targets = encoder_out#[time_mask_indices]
 
         targets_out = self.out_linear(targets)
 
-        return targets_out, labels[time_mask_indices == 1]
+        return targets_out, labels#[time_mask_indices == 1]
 
 
 
