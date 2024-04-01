@@ -1,35 +1,43 @@
-import argparse
-import glob
-import math
-import ntpath
-import os
-import shutil
-import numpy as np
 import torch as th
+import numpy as np
 import matplotlib.pyplot as plt
-from datetime import datetime
+
+def compute_spectrogram(tensor, n_fft, hop_length = None, window = None):
+    return abs(th.stft(tensor, n_fft= n_fft, hop_length = hop_length, window = window, center=True, return_complex= True))
 
 
-filepath = '/Users/constouille/Documents/GitHub/DL_ESPCI/adl24-sleep-stage/cassette-th-data.pck'
-xtrain, xvalid, ytrain, yvalid = np.load(filepath, allow_pickle = True)
-length = len(xtrain[0])
-n_dim = 4
-n_subject = len(xtrain)
-n_subsample = 20
-size_subsample = length // n_subsample
-sliding_fft_tensor = th.ones(n_dim, n_subject, length)
-stop = False
+def plot_spectrogram(spectrogram, sample_rate=1, title='Spectrogram', xlabel='Time', ylabel='Frequency'):
+    """
+    Plot the spectrogram.
 
-for signals in [xtrain, xvalid]:
-    print('Training' if (signals[0] == xtrain[0]).sum() == length else 'Validation')
-    for j, signal in enumerate(signals):
-        sliding_fft = []
-        for balecouilles in range(n_subsample):
-            signal_to_process = signal[i*size_subsample : (i+1)*size_subsample]
-            fft_signal = np.fft.fft(signal_to_process)
-            sliding_fft.append(abs(fft_signal))
-        sliding_fft = np.array(sliding_fft)
-        sliding_fft = sliding_fft.flatten()
-        sliding_fft_tensor[i,j, :] = th.tensor(sliding_fft)
-        if stop:
-            break
+    Args:
+    - spectrogram (torch.Tensor): Spectrogram to plot. It should have shape (channels, freq_bins, time_frames).
+    - sample_rate (int): Sampling rate of the signal (samples per second).
+    - title (str): Title of the plot.
+    - xlabel (str): Label for the x-axis.
+    - ylabel (str): Label for the y-axis.
+    """
+    # Convert the spectrogram tensor to numpy array
+    spectrogram_np = spectrogram.numpy()
+
+    # Get the number of channels, frequency bins, and time frames
+    num_channels, freq_bins, time_frames = spectrogram_np.shape
+
+    # Compute time axis
+    time_axis = np.arange(time_frames) / sample_rate
+
+    # Compute frequency axis
+    freq_axis = np.arange(freq_bins) * (sample_rate / 2) / (freq_bins // 2)
+
+    # Plot the spectrogram for each channel
+    for i in range(num_channels):
+        plt.figure(figsize=(10, 6))
+        plt.imshow(np.log(spectrogram_np[i] + 1), aspect='auto', origin='lower', cmap='viridis',
+                extent=[time_axis[0], time_axis[-1], freq_axis[0], freq_axis[-1]])
+        plt.title(f'{title} - Channel {i+1}')
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.colorbar(label='Log amplitude')
+        plt.tight_layout()
+        plt.show()
+    return None
