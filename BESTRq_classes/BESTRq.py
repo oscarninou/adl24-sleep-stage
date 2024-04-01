@@ -88,9 +88,8 @@ class BestRqFramework(nn.Module):
 
         targets = encoder_out#[time_mask_indices]
 
-        targets_out = self.out_linear(targets)
 
-        return targets_out, labels#[time_mask_indices == 1]
+        return targets, labels#[time_mask_indices == 1]
 
 
 
