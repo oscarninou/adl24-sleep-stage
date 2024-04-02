@@ -1,7 +1,7 @@
 import torch  as th
 import torch.nn as nn
 import random
-
+from compute_fft import mask_and_replace
 
 class RandomProjectionQuantizer(nn.Module):
     def __init__(self, input_dim, quantizer_dim, codebook_size, random_state=None, device='cpu'):
@@ -18,7 +18,7 @@ class RandomProjectionQuantizer(nn.Module):
             th.manual_seed(random_state)
 
     @th.no_grad()
-    def forward(self, input_values: th.Tensor) -> th.Tensor:
+    def forward(self, input_values: th.Tensor, raw_signal) -> th.Tensor:
         """
         Args:
             input_values (th.Tensor): with shape `(B, L, D)`
@@ -28,28 +28,41 @@ class RandomProjectionQuantizer(nn.Module):
             th.Tensor with shape `(N)`
 
         """
-        shape = input_values.shape
-        targets = self.random_projection(input_values)
 
-        repeated_code_book = self.code_book.unsqueeze(0).unsqueeze(0).expand(shape[0], shape[1], -1, -1)
+        if raw_signal:
+            shape = input_values.shape
+            targets = self.random_projection(input_values)
+            repeated_code_book = self.code_book.unsqueeze(0).unsqueeze(0).expand(shape[0], shape[1], -1, -1)
+            # Effectuer l'opération de soustraction
+            vector_distances = th.norm(targets.unsqueeze(-1).expand_as(repeated_code_book) - repeated_code_book, dim=2)
+            labels = th.argmin(vector_distances, dim=-1)
 
-        # Effectuer l'opération de soustraction
-        vector_distances = th.norm(targets.unsqueeze(-1).expand_as(repeated_code_book) - repeated_code_book, dim=2)
+        else:
 
-
-        labels = th.argmin(vector_distances, dim=-1)
+            shape = input_values.shape
+            input_values = input_values.flatten().view(shape[0], -1)
+            shape = input_values.shape
+            targets = self.random_projection(input_values)
+            expanded_code_book = self.code_book.unsqueeze(0).expand(shape[0], 1, -1, -1).squeeze(1)
+            expanded_code_book_subset = expanded_code_book[:, :targets.shape[1], :]
+            # Perform subtraction operation
+            print(expanded_code_book_subset.shape, targets.unsqueeze(2).shape)
+            vector_distances = th.norm(targets.unsqueeze(2) - expanded_code_book_subset, dim=-1)
+            labels = th.argmin(vector_distances, dim=-1)
 
         return labels
 
 class BestRqFramework(nn.Module):
     def __init__(self, encoder: nn.Module, num_temporal_dimension_reduction_steps: int, input_feature_size: int, encoder_hidden_size: int, num_code_books: int,
-                 mask_time: int, stride_time: int, random_state : int, mask_prob: float = 0.1, batch_size : int = 200, num_masks_per_signal :int = 5, device='cpu'):
+                 mask_time: int, stride_time: int, random_state : int, mask_prob: float = 0.1, batch_size : int = 200, num_masks_per_signal :int = 5,
+                 device='cpu', raw_signal = True, input_quantizer_dim = 0):
         super().__init__()
         self.K = num_temporal_dimension_reduction_steps
         self.random_state = random_state
         self.batch_size = batch_size
         self.layer_norm = nn.LayerNorm(input_feature_size).to(device)  # Ajouter au périphérique
-        self.random_projection_quantizer = RandomProjectionQuantizer(input_feature_size, encoder_hidden_size, num_code_books, random_state=random_state, device=device)
+        self.input_quantizer_dim = input_feature_size if input_quantizer_dim == 0 else input_quantizer_dim
+        self.random_projection_quantizer = RandomProjectionQuantizer(self.input_quantizer_dim, encoder_hidden_size, num_code_books, random_state=random_state, device=device)
         self.random_projection_quantizer.to(device)  # Ajouter au périphérique
         self.encoder = encoder.to(device)  # Ajouter au périphérique
         self.out_linear = nn.Linear(200, 1).to(device)  # Ajouter au périphérique
@@ -58,6 +71,7 @@ class BestRqFramework(nn.Module):
         self.mask_time = mask_time
         self.num_masks_per_signal = num_masks_per_signal
         self.device = device
+        self.raw_signal = raw_signal
 
     def split_batch(self, X, y):
         dataset = TensorDataset(X, y)
@@ -75,23 +89,31 @@ class BestRqFramework(nn.Module):
         """
         input_values = input_values.to(self.device)
 
-        input_values = self.layer_norm(input_values)
+        if self.raw_signal:
+            input_values = self.layer_norm(input_values)
+
+        else:
+            input_values = self.layer_norm(input_values.permute(0, 2, 1)).permute(0,2,1)
+
+
 
         if masking:
-            masked_input_values, time_mask_indices = self.masking(input_values.clone())
+            if self.raw_signal:
+                masked_input_values = self.masking(input_values.clone()).view(1, -1, 600)
+            else:
+                masked_input_values, _ = mask_and_replace(input_values, mask_prob=self.mask_prob,
+                                                       mask_time= self.mask_time, number_of_mask= self.num_masks_per_signal)
+
         else:
-            masked_input_values, time_mask_indices = input_values.clone(), th.zeros(input_values.shape)
+            masked_input_values = input_values.clone()
 
-        labels = self.random_projection_quantizer(input_values)
+        labels = self.random_projection_quantizer(input_values, raw_signal = self.raw_signal)
+        encoder_out = self.encoder(masked_input_values)
 
-        encoder_out = self.encoder(masked_input_values.view(1, -1, 600))
-
-        targets = encoder_out#[time_mask_indices]
-
-
-        return targets, labels#[time_mask_indices == 1]
+        targets = encoder_out
 
 
+        return targets, labels
 
     def masking(self, input_tensor, min_mask=0):
         """
