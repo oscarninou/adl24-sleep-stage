@@ -46,7 +46,6 @@ class RandomProjectionQuantizer(nn.Module):
             expanded_code_book = self.code_book.unsqueeze(0).expand(shape[0], 1, -1, -1).squeeze(1)
             expanded_code_book_subset = expanded_code_book[:, :targets.shape[1], :]
             # Perform subtraction operation
-            print(expanded_code_book_subset.shape, targets.unsqueeze(2).shape)
             vector_distances = th.norm(targets.unsqueeze(2) - expanded_code_book_subset, dim=-1)
             labels = th.argmin(vector_distances, dim=-1)
 
@@ -97,12 +96,16 @@ class BestRqFramework(nn.Module):
 
 
 
+
+
+
         if masking:
             if self.raw_signal:
-                masked_input_values = self.masking(input_values.clone()).view(1, -1, 600)
+                masked_input_values, _ = self.masking(input_values.clone())
+                masked_input_values = masked_input_values.view(1, -1, 600)
             else:
                 masked_input_values, _ = mask_and_replace(input_values, mask_prob=self.mask_prob,
-                                                       mask_time= self.mask_time, number_of_mask= self.num_masks_per_signal)
+                                                       mask_time= self.mask_time, number_of_mask= self.num_masks_per_signal,device= self.device)
 
         else:
             masked_input_values = input_values.clone()
