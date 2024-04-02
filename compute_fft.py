@@ -2,8 +2,8 @@ import torch as th
 import numpy as np
 import matplotlib.pyplot as plt
 
-def compute_spectrogram(tensor, n_fft, hop_length = None, window = None):
-    return abs(th.stft(tensor, n_fft= n_fft, hop_length = hop_length, window = window, center=True, return_complex= True))
+def compute_spectrogram(tensor, n_fft, window = None):
+    return abs(th.stft(tensor, n_fft= n_fft, hop_length = n_fft//20, window = window, center=True, return_complex= True, normalized=True))
 
 
 def plot_spectrogram(spectrogram, sample_rate=1, title='Spectrogram', xlabel='Time', ylabel='Frequency'):
@@ -41,3 +41,29 @@ def plot_spectrogram(spectrogram, sample_rate=1, title='Spectrogram', xlabel='Ti
         plt.tight_layout()
         plt.show()
     return None
+
+def mask_and_replace(spectrogram, mask_prob, mask_time, number_of_mask):
+    # Get the dimensions of the input tensor
+    batch_size, freq_bins, time = input_tensor.size()
+
+
+    # Calculate the start index for the mask
+
+    noise = th.normal(mean = 0, std = 0.1, size= input_tensor.size())
+
+
+    # Generate a binary mask tensor
+    mask = th.zeros( batch_size, freq_bins, time)
+    mask_idx = th.rand(batch_size) < mask_prob
+    for k in range(number_of_mask):
+        start_index = th.randint(0, time - mask_time + 1, (batch_size,))
+        for i in range(batch_size):
+            if mask_idx[i]:
+                mask[i, :, start_index[i]:start_index[i] + mask_time] = 1
+
+    mask = mask > 0.5
+
+    # Mask and replace selected elements with random noise
+    masked_tensor = input_tensor.clone()
+    masked_tensor[mask] = noise[mask]
+    return masked_tensor, mask
