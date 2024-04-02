@@ -44,12 +44,12 @@ def plot_spectrogram(spectrogram, sample_rate=1, title='Spectrogram', xlabel='Ti
 
 def mask_and_replace(spectrogram, mask_prob, mask_time, number_of_mask):
     # Get the dimensions of the input tensor
-    batch_size, freq_bins, time = input_tensor.size()
+    batch_size, freq_bins, time = spectrogram.size()
 
 
     # Calculate the start index for the mask
 
-    noise = th.normal(mean = 0, std = 0.1, size= input_tensor.size())
+    noise = th.normal(mean = 0, std = 0.1, size= spectrogram.size())
 
 
     # Generate a binary mask tensor
@@ -64,6 +64,6 @@ def mask_and_replace(spectrogram, mask_prob, mask_time, number_of_mask):
     mask = mask > 0.5
 
     # Mask and replace selected elements with random noise
-    masked_tensor = input_tensor.clone()
+    masked_tensor = spectrogram.clone()
     masked_tensor[mask] = noise[mask]
     return masked_tensor, mask
