@@ -44,7 +44,7 @@ def plot_spectrogram(spectrogram, sample_rate=1, title='Spectrogram', xlabel='Ti
 
 def mask_and_replace(spectrogram, mask_prob, mask_time, number_of_mask, device):
     # Get the dimensions of the input tensor
-    batch_size, freq_bins, time = spectrogram.size()
+    batch_size, num_channel , freq_bins, time = spectrogram.size()
 
 
     # Calculate the start index for the mask
@@ -53,13 +53,13 @@ def mask_and_replace(spectrogram, mask_prob, mask_time, number_of_mask, device):
 
 
     # Generate a binary mask tensor
-    mask = th.zeros( batch_size, freq_bins, time)
+    mask = th.zeros(spectrogram.size())
     mask_idx = th.rand(batch_size) < mask_prob
-    for k in range(number_of_mask):
+    for _ in range(number_of_mask):
         start_index = th.randint(0, time - mask_time + 1, (batch_size,))
         for i in range(batch_size):
             if mask_idx[i]:
-                mask[i, :, start_index[i]:start_index[i] + mask_time] = 1
+                mask[i,:, :, start_index[i]:start_index[i] + mask_time] = 1
 
     mask = mask > 0.5
     mask = mask.to(device)
