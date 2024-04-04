@@ -22,6 +22,8 @@ dvc-gs = "^3.0.1"
 torchaudio = "^2.2.1"
 conformer = "^0.3.2"
 einops = "^0.7.0"
+omegaconf = "^2.3.0"
+pytorch-lightning = "^2.2.1"
 
 
 [build-system]

@@ -3,7 +3,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def compute_spectrogram(tensor, n_fft, window = None):
-    return abs(th.stft(tensor, n_fft= n_fft, hop_length = n_fft//20, window = window, center=True, return_complex= True, normalized=True))
+    if len(tensor.shape) > 2:
+        tensor_stft = []
+        for i in range(tensor.shape[1]):
+            feature = tensor[:, i, :]
+            feature= abs(th.stft(feature, n_fft= n_fft, hop_length = n_fft//20, window = th.hann_window(n_fft).to(tensor.device), center=True, return_complex= True, normalized=True))
+            tensor_stft.append(feature)
+        tensor= th.stack(tensor_stft, dim=-1)
+    return tensor
 
 
 def plot_spectrogram(spectrogram, sample_rate=1, title='Spectrogram', xlabel='Time', ylabel='Frequency'):
@@ -42,9 +49,12 @@ def plot_spectrogram(spectrogram, sample_rate=1, title='Spectrogram', xlabel='Ti
         plt.show()
     return None
 
-def mask_and_replace(spectrogram, mask_prob, mask_time, number_of_mask, device):
+def mask(spectrogram, mask_prob, mask_time, number_of_mask, device, raw_signal):
     # Get the dimensions of the input tensor
-    batch_size, num_channel , freq_bins, time = spectrogram.size()
+    if raw_signal:
+        batch_size, num_channel, time = spectrogram.size()
+    else:
+        batch_size, num_channel , freq_bins, time = spectrogram.size()
 
 
     # Calculate the start index for the mask
@@ -59,7 +69,10 @@ def mask_and_replace(spectrogram, mask_prob, mask_time, number_of_mask, device):
         start_index = th.randint(0, time - mask_time + 1, (batch_size,))
         for i in range(batch_size):
             if mask_idx[i]:
-                mask[i,:, :, start_index[i]:start_index[i] + mask_time] = 1
+                if raw_signal:
+                    mask[i, :, start_index[i]:start_index[i] + mask_time] = 1
+                else :
+                    mask[i,:, :, start_index[i]:start_index[i] + mask_time] = 1
 
     mask = mask > 0.5
     mask = mask.to(device)
