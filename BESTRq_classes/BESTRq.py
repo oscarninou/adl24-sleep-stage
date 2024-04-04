@@ -34,7 +34,7 @@ class RandomProjectionQuantizer(nn.Module):
             targets = self.random_projection(input_values)
             repeated_code_book = self.code_book.unsqueeze(0).unsqueeze(0).expand(shape[0], shape[1], -1, -1)
             # Effectuer l'opération de soustraction
-            vector_distances = th.norm(targets.unsqueeze(-1).expand_as(repeated_code_book) - repeated_code_book, dim=2)
+            vector_distances = th.norm(targets.unsqueeze(-1).expand_as(repeated_code_book) - repeated_code_book, dim=(1, 3))
             labels = th.argmin(vector_distances, dim=-1)
 
         else:
@@ -59,7 +59,6 @@ class BestRqFramework(nn.Module):
         self.K = num_temporal_dimension_reduction_steps
         self.random_state = random_state
         self.batch_size = batch_size
-        self.layer_norm = nn.LayerNorm(input_feature_size).to(device)  # Ajouter au périphérique
         self.input_quantizer_dim = input_feature_size if input_quantizer_dim == 0 else input_quantizer_dim
         self.random_projection_quantizer = RandomProjectionQuantizer(self.input_quantizer_dim, encoder_hidden_size, num_code_books, random_state=random_state, device=device)
         self.random_projection_quantizer.to(device)  # Ajouter au périphérique
@@ -86,17 +85,6 @@ class BestRqFramework(nn.Module):
         Returns:
 
         """
-        input_values = input_values.to(self.device)
-
-        if self.raw_signal:
-            input_values = self.layer_norm(input_values)
-
-        else:
-            input_values = self.layer_norm(input_values.permute(0, 2, 1)).permute(0,2,1)
-
-
-
-
 
 
         if masking:
@@ -113,10 +101,8 @@ class BestRqFramework(nn.Module):
         labels = self.random_projection_quantizer(input_values, raw_signal = self.raw_signal)
         encoder_out = self.encoder(masked_input_values)
 
-        targets = encoder_out
 
-
-        return targets, labels
+        return encoder_out, labels
 
     def masking(self, input_tensor, min_mask=0):
         """
