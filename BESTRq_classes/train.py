@@ -13,10 +13,55 @@ from tqdm import tqdm
 from transformers import AutoModel, AutoConfig
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from BESTRq_classes.BESTRq import BestRqFramework, RandomProjectionQuantizer
-from compute_fft import compute_spectrogram, plot_spectrogram
+from compute_fft import compute_spectrogram, plot_spectrogram, mask
 from models.CNN_BiLSTM_Attention import ParallelModel
 
-def pretrain(trainloader, validloader, model , BestRQ, epochs=10, lr=1e-3, device = 'cpu', raw_signal = True):
+def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epochs=10, lr=1e-3, device = 'cpu', raw_signal = True, batch_size = 200):
+
+    xtrain, ytrain= training_data
+    xvalid, yvalid = valid_data
+
+    # Convert tensors to device
+    xtrain_device = xtrain.to(device)
+    xvalid_device = xvalid.to(device)
+
+    # Initialize empty lists to store the results
+    ytrain_batches = []
+    yvalid_batches = []
+
+    # Process training data in batches
+    for i in range(0, len(xtrain_device), batch_size):
+        x_batch = xtrain_device[i:min(i+batch_size, len(xtrain_device))]
+        y_batch = BestRQ(x_batch)
+        ytrain_batches.append(y_batch)
+
+    # Process validation data in batches
+    for i in range(0, len(xvalid_device), batch_size):
+        x_batch = xvalid_device[i:min(i+batch_size, len(xvalid_device))]
+        y_batch = BestRQ(x_batch)
+        yvalid_batches.append(y_batch)
+
+    # Concatenate the batches
+    ytrain = th.cat(ytrain_batches, dim=0)
+    yvalid = th.cat(yvalid_batches, dim=0)
+    print('Projection done')
+
+    dataset_t = TensorDataset(xtrain, ytrain)
+    dataset_size = len(dataset_t)
+    half_dataset_size = dataset_size // ratio_dataset
+    dataset_t1, _ = random_split(dataset_t,  [half_dataset_size, dataset_size - half_dataset_size])
+    train_loader = DataLoader(dataset_t1, batch_size= batch_size, shuffle=True)
+    print('Training loader ok')
+
+    dataset_v = TensorDataset(xvalid, yvalid)
+    dataset_size = len(dataset_v)
+    half_dataset_size = dataset_size // ratio_dataset
+    dataset_v1, dataset_v2 = random_split(dataset_v,  [half_dataset_size, dataset_size - half_dataset_size])
+    valid_loader = DataLoader(dataset_v1, batch_size= batch_size, shuffle=True)
+    print('Validation loader ok')
+
+
+
 
     optimizer = optim.Adam(model.parameters(), lr=lr)
     loss_function = nn.CrossEntropyLoss()
@@ -26,6 +71,8 @@ def pretrain(trainloader, validloader, model , BestRQ, epochs=10, lr=1e-3, devic
     valid_accuracies = []    # Pour sauvegarder l'accuracy de validation à chaque époch
     train_accuracies = []    # Pour sauvegarder l'accuracy de validation à chaque époch
 
+
+    print('Training started')
     # Iterate over epochs
     for epoch in tqdm(range(epochs)):
         epoch_train_loss = 0.0
@@ -34,23 +81,17 @@ def pretrain(trainloader, validloader, model , BestRQ, epochs=10, lr=1e-3, devic
 
         # Training phase
         model.train()
-        for inputs, labels in trainloader:
+        for inputs, labels in train_loader:
             optimizer.zero_grad()
-            if raw_signal:
-                inputs = inputs.view(1, 600, -1).to(device)
-            else:
-                inputs = inputs.unsqueeze(1).permute(0,3,1,2).to(device)
-            inputs = BestRQ.masking(inputs)
+            inputs = inputs.to(device)
+            inputs, _ = mask(inputs, mask_prob = BestRQ.mask_prob, mask_time = BestRQ.mask_time, number_of_mask = BestRQ.num_masks_per_signal, device = inputs.device, raw_signal = raw_signal)
             encoder_outs = model(inputs)
             loss = loss_function(encoder_outs, labels.view(-1))
             loss.backward()
             optimizer.step()
             # Compute accuracy
             predicted = th.argmax(encoder_outs, dim=1)
-            if raw_signal:
-                total += labels.size(1)
-            else:
-                total += labels.size(0)
+            total += labels.size(0)
             correct += (predicted == labels.view_as(predicted)).sum().item()
             epoch_train_loss += loss.item()
 
@@ -67,21 +108,15 @@ def pretrain(trainloader, validloader, model , BestRQ, epochs=10, lr=1e-3, devic
             epoch_valid_loss = 0.0
             correct = 0
             total = 0
-            for inputs, labels in validloader:
-                if raw_signal:
-                    inputs = inputs.view(1, 600, -1).to(device)
-                else:
-                    inputs = inputs.unsqueeze(1).permute(0,3,1,2).to(device)
+            for inputs, labels in valid_loader:
+                inputs = inputs.to(device)
                 encoder_outs = model(inputs)
                 loss = loss_function(encoder_outs, labels.view(-1))
                 epoch_valid_loss += loss.item()
 
                 # Compute accuracy
                 predicted = th.argmax(encoder_outs, dim=1)
-                if raw_signal:
-                    total += labels.size(1)
-                else:
-                    total += labels.size(0)
+                total += labels.size(0)
                 correct += (predicted == labels.view_as(predicted)).sum().item()
 
             # Calculate average validation loss for the epoch

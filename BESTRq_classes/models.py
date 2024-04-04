@@ -13,7 +13,7 @@ from tqdm import tqdm
 from transformers import AutoModel, AutoConfig
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from BESTRq_classes.BESTRq import BestRqFramework, RandomProjectionQuantizer
-from compute_fft import compute_spectrogram, plot_spectrogram
+from compute_fft import compute_spectrogram, plot_spectrogram, mask
 from models.CNN_BiLSTM_Attention import ParallelModel
 
 class AttentionLSTM(nn.Module):
@@ -104,12 +104,14 @@ class GRUPredictor(nn.Module):
     def init_hidden(self, bsz):
         # This function is given: understand it.
         self.h = th.zeros(self.nstack, bsz, self.hidden_dim)
+        return self.h
 
     def forward(self, inputs, h0=None):
-        inputs = inputs.squeeze(2).permute(0,2,1)
         shape = inputs.shape
+        inputs = inputs.permute(0, 2, 1)
         if h0 == None:
           h0 = self.init_hidden(inputs.shape[0])
+          h0 = h0.to(inputs.device)
         hidden, h0 = self.gru(inputs, h0)
         out = self.drop(hidden)
         out = out.flatten().view(shape[0], -1)

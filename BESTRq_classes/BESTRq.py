@@ -67,7 +67,6 @@ class BestRqFramework(nn.Module):
 
     def forward(self, input_values: th.Tensor, masking = True):
 
-
         labels = self.random_projection_quantizer(input_values, raw_signal = self.raw_signal)
 
         return labels
