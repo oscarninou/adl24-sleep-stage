@@ -5,10 +5,6 @@ import torch.autograd as autograd
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-import pickle
-import pandas as pd
-import seaborn as sns
-import random
 from tqdm import tqdm
 from transformers import AutoModel, AutoConfig
 from torch.utils.data import TensorDataset, DataLoader, random_split
@@ -96,11 +92,13 @@ def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epoch
             epoch_train_loss += loss.item()
 
         # Calculate average training loss for the epoch
-        avg_train_loss = epoch_train_loss / len(trainloader)
+        avg_train_loss = epoch_train_loss / len(train_loader)
         train_losses.append(avg_train_loss)
         # Calculate validation accuracy
         train_accuracy = correct / total
         train_accuracies.append(train_accuracy)
+
+        print('Validation')
 
         # Validation phase
         model.eval()
@@ -120,7 +118,7 @@ def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epoch
                 correct += (predicted == labels.view_as(predicted)).sum().item()
 
             # Calculate average validation loss for the epoch
-            avg_valid_loss = epoch_valid_loss / len(validloader)
+            avg_valid_loss = epoch_valid_loss / len(valid_loader)
             valid_losses.append(avg_valid_loss)
 
             # Calculate validation accuracy

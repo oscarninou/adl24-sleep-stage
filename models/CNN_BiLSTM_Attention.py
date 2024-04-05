@@ -1,13 +1,13 @@
 import torch as th
 import torch.nn as nn
 
-class ParallelModel(nn.Module):
+class CNN_BiLSTM_Attention(nn.Module):
     def __init__(self,num_codebooks):
         super().__init__()
         # conv block
         self.conv2Dblock = nn.Sequential(
             # 1. conv block
-            nn.Conv2d(in_channels=1,
+            nn.Conv2d(in_channels=2,
                        out_channels=16,
                        kernel_size=3,
                        stride=1,
@@ -62,6 +62,7 @@ class ParallelModel(nn.Module):
         self.dropout_linear = nn.Dropout(p=0)
         self.out_softmax = nn.Softmax(dim=1)
     def forward(self,x):
+        print(x.shape)
         # conv embedding
         conv_embedding = self.conv2Dblock(x) #(b,channel,freq,time)
         conv_embedding = th.flatten(conv_embedding, start_dim=1) # do not flatten batch dimension
