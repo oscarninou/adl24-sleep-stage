@@ -14,7 +14,7 @@ from transformers import AutoModel, AutoConfig
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from BESTRq_classes.BESTRq import BestRqFramework, RandomProjectionQuantizer
 from compute_fft import compute_spectrogram, plot_spectrogram, mask
-from models.CNN_BiLSTM_Attention import ParallelModel
+
 
 class AttentionLSTM(nn.Module):
     def __init__(self, input_dim=600, hidden_dim=100, nstack=2, dropout=0, codebook_size = 50, embedding_dim = 50):

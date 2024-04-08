@@ -10,7 +10,7 @@ from transformers import AutoModel, AutoConfig
 from torch.utils.data import TensorDataset, DataLoader, random_split
 from BESTRq_classes.BESTRq import BestRqFramework, RandomProjectionQuantizer
 from compute_fft import compute_spectrogram, plot_spectrogram, mask
-from models.CNN_BiLSTM_Attention import ParallelModel
+
 
 def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epochs=10, lr=1e-3, device = 'cpu', raw_signal = True, batch_size = 200):
 
