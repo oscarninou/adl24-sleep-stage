@@ -7,7 +7,7 @@ class CNN_BiLSTM_Attention(nn.Module):
         # conv block
         self.conv2Dblock = nn.Sequential(
             # 1. conv block
-            nn.Conv2d(in_channels=2,
+            nn.Conv2d(in_channels=1,
                        out_channels=16,
                        kernel_size=3,
                        stride=1,

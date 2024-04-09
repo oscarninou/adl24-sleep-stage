@@ -2,7 +2,7 @@ import torch as th
 import numpy as np
 import matplotlib.pyplot as plt
 
-def compute_spectrogram(tensor, n_fft, window = None):
+def compute_spectrogram(tensor, n_fft):
     if len(tensor.shape) > 2:
         tensor_stft = []
         for i in range(tensor.shape[1]):

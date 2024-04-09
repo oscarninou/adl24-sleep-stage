@@ -129,3 +129,100 @@ def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epoch
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss}, Validation Loss: {avg_valid_loss}, Training Accuracy: {train_accuracy}, Validation Accuracy: {valid_accuracy}")
 
     return train_losses, valid_losses, train_accuracies, valid_accuracies
+
+
+
+def train_decoder(training_data, valid_data, decoder,encoder, epochs=10, lr=1e-3, device = 'cpu', raw_signal = True, batch_size = 500):
+
+    xtrain, ytrain= training_data
+    xvalid, yvalid = valid_data
+
+    # Convert tensors to device
+    xtrain, ytrain = xtrain.to(device), ytrain.to(device)
+    xvalid, yvalid = xvalid.to(device), yvalid.to(device)
+
+
+    dataset_t = TensorDataset(xtrain, ytrain)
+    train_loader = DataLoader(dataset_t, batch_size= batch_size, shuffle=True)
+    print('Training loader ok')
+
+    dataset_v = TensorDataset(xvalid, yvalid)
+    valid_loader = DataLoader(dataset_v, batch_size= batch_size, shuffle=True)
+    print('Validation loader ok')
+
+
+
+
+    optimizer = optim.Adam(decoder.parameters(), lr=lr)
+    loss_function = nn.CrossEntropyLoss()
+
+    train_losses = []  # Pour sauvegarder la loss à chaque époch
+    valid_losses = []  # Pour sauvegarder la loss de validation à chaque époch
+    valid_accuracies = []    # Pour sauvegarder l'accuracy de validation à chaque époch
+    train_accuracies = []    # Pour sauvegarder l'accuracy de validation à chaque époch
+
+
+    print('Training started')
+    # Iterate over epochs
+    for epoch in tqdm(range(epochs)):
+        epoch_train_loss = 0.0
+        correct = 0
+        total = 0
+
+        # Training phase
+        decoder.train()
+        encoder.eval()
+        for inputs, labels in train_loader:
+            optimizer.zero_grad()
+            inputs = inputs.unsqueeze(1).to(device)
+            encoder_outs = encoder(inputs)
+            preds = decoder(encoder_outs)
+            loss = loss_function(preds, labels.view(-1))
+            loss.backward()
+            optimizer.step()
+            # Compute accuracy
+            predicted = th.argmax(preds, dim=1)
+            total += labels.size(0)
+            correct += (predicted == labels.view_as(predicted)).sum().item()
+            epoch_train_loss += loss.item()
+
+        # Calculate average training loss for the epoch
+        avg_train_loss = epoch_train_loss / len(train_loader)
+        train_losses.append(avg_train_loss)
+        # Calculate validation accuracy
+        train_accuracy = correct / total
+        train_accuracies.append(train_accuracy)
+
+        print('Validation')
+
+        # Validation phase
+        decoder.eval()
+
+        with th.no_grad():
+            epoch_valid_loss = 0.0
+            correct = 0
+            total = 0
+            for inputs, labels in valid_loader:
+                inputs = inputs.unsqueeze(1).to(device)
+                encoder_outs = encoder(inputs)
+                preds = decoder(encoder_outs)
+                loss = loss_function(preds, labels.view(-1))
+                epoch_valid_loss += loss.item()
+
+                # Compute accuracy
+                predicted = th.argmax(preds, dim=1)
+                total += labels.size(0)
+                correct += (predicted == labels.view_as(predicted)).sum().item()
+
+            # Calculate average validation loss for the epoch
+            avg_valid_loss = epoch_valid_loss / len(valid_loader)
+            valid_losses.append(avg_valid_loss)
+
+            # Calculate validation accuracy
+            valid_accuracy = correct / total
+            valid_accuracies.append(valid_accuracy)
+
+        # Print epoch statistics
+        print(f"Epoch {epoch+1}/{epochs}, Train Loss: {avg_train_loss}, Validation Loss: {avg_valid_loss}, Training Accuracy: {train_accuracy}, Validation Accuracy: {valid_accuracy}")
+
+    return train_losses, valid_losses, train_accuracies, valid_accuracies
