@@ -139,14 +139,16 @@ def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epoch
 
 
 
-def train_decoder(training_data, valid_data, decoder,encoder, epochs=10, lr=1e-3, device = 'cpu', raw_signal = True, batch_size = 500):
+def train_decoder(training_data, valid_data, decoder,encoder, epochs=10, lr=1e-3, device = 'cpu', raw_signal = True, batch_size = 500, device_for_proj = True):
 
     xtrain, ytrain= training_data
     xvalid, yvalid = valid_data
 
-    # Convert tensors to device
-    xtrain, ytrain = xtrain.to(device), ytrain.to(device)
-    xvalid, yvalid = xvalid.to(device), yvalid.to(device)
+    if device_for_proj:
+
+        # Convert tensors to device
+        xtrain, ytrain = xtrain.to(device), ytrain.to(device)
+        xvalid, yvalid = xvalid.to(device), yvalid.to(device)
 
 
     dataset_t = TensorDataset(xtrain, ytrain)
@@ -181,7 +183,10 @@ def train_decoder(training_data, valid_data, decoder,encoder, epochs=10, lr=1e-3
         encoder.eval()
         for inputs, labels in train_loader:
             optimizer.zero_grad()
-            inputs = inputs.unsqueeze(1).to(device)
+            if device_for_proj:
+                inputs = inputs.unsqueeze(1).to(device)
+            else:
+                inputs, labels = inputs.to(device), labels.to(device)
             encoder_outs = encoder(inputs)
             preds = decoder(encoder_outs)
             loss = loss_function(preds, labels.view(-1))
@@ -210,7 +215,10 @@ def train_decoder(training_data, valid_data, decoder,encoder, epochs=10, lr=1e-3
             correct = 0
             total = 0
             for inputs, labels in valid_loader:
-                inputs = inputs.unsqueeze(1).to(device)
+                if device_for_proj:
+                    inputs = inputs.unsqueeze(1).to(device)
+                else:
+                    inputs, labels = inputs.to(device), labels.to(device)
                 encoder_outs = encoder(inputs)
                 preds = decoder(encoder_outs)
                 loss = loss_function(preds, labels.view(-1))
