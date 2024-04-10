@@ -12,14 +12,21 @@ from BESTRq_classes.BESTRq import BestRqFramework, RandomProjectionQuantizer
 from compute_fft import compute_spectrogram, plot_spectrogram, mask
 
 
-def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epochs=10, lr=1e-3, device = 'cpu', raw_signal = True, batch_size = 200):
+def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epochs=10, lr=1e-3, device = 'cpu', raw_signal = True, batch_size = 200, device_for_proj = True):
 
     xtrain, ytrain= training_data
     xvalid, yvalid = valid_data
 
-    # Convert tensors to device
-    xtrain_device = xtrain.to(device)
-    xvalid_device = xvalid.to(device)
+    if device_for_proj == True:
+
+        # Convert tensors to device
+        xtrain_device = xtrain.to(device)
+        xvalid_device = xvalid.to(device)
+
+    else:
+        xtrain_device = xtrain
+        xvalid_device = xvalid
+
 
     # Initialize empty lists to store the results
     ytrain_batches = []
@@ -28,7 +35,7 @@ def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epoch
     # Process training data in batches
     for i in range(0, len(xtrain_device), batch_size):
         x_batch = xtrain_device[i:min(i+batch_size, len(xtrain_device))]
-        y_batch = BestRQ(x_batch)
+        y_batch = BestRQ(x_batch,)
         ytrain_batches.append(y_batch)
 
     # Process validation data in batches
@@ -79,7 +86,7 @@ def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epoch
         model.train()
         for inputs, labels in train_loader:
             optimizer.zero_grad()
-            inputs = inputs.to(device)
+            inputs, labels = inputs.to(device), labels.to(device)
             inputs, _ = mask(inputs, mask_prob = BestRQ.mask_prob, mask_time = BestRQ.mask_time, number_of_mask = BestRQ.num_masks_per_signal, device = inputs.device, raw_signal = raw_signal)
             encoder_outs = model(inputs)
             loss = loss_function(encoder_outs, labels.view(-1))
@@ -107,7 +114,7 @@ def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epoch
             correct = 0
             total = 0
             for inputs, labels in valid_loader:
-                inputs = inputs.to(device)
+                inputs, labels = inputs.to(device), labels.to(device)
                 encoder_outs = model(inputs)
                 loss = loss_function(encoder_outs, labels.view(-1))
                 epoch_valid_loss += loss.item()
