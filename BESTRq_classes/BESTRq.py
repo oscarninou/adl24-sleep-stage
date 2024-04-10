@@ -28,24 +28,32 @@ class RandomProjectionQuantizer(nn.Module):
 
         """
 
+
         if raw_signal:
             shape = input_values.shape
             targets = self.random_projection(input_values)
             repeated_code_book = self.code_book.unsqueeze(0).unsqueeze(0).expand(shape[0], shape[1], -1, -1)
+            size_layer_norm = repeated_code_book.shape[1:]
+            layer_norm = nn.LayerNorm(size_layer_norm)
             # Effectuer l'opération de soustraction
-            vector_distances = th.norm(targets.unsqueeze(-1).expand_as(repeated_code_book) - repeated_code_book, dim=(1, 3))
+            vector_distances = layer_norm(targets.unsqueeze(-1).expand_as(repeated_code_book)) - layer_norm(repeated_code_book)
+            print(vector_distances.shape)
             labels = th.argmin(vector_distances, dim=-1)
 
         else:
 
             shape = input_values.shape
             input_values = input_values.flatten().view(shape[0], -1)
-            shape = input_values.shape
             targets = self.random_projection(input_values)
             expanded_code_book = self.code_book.unsqueeze(0).expand(shape[0], 1, -1, -1).squeeze(1)
             expanded_code_book_subset = expanded_code_book[:, :targets.shape[1], :]
+            size_layer_norm = expanded_code_book_subset.shape[1:]
+            layer_norm_c = nn.LayerNorm(size_layer_norm).to(input_values.device)
+            targets = targets.unsqueeze(1)
+            size_targets = targets.shape[1:]
+            layer_norm_t = nn.LayerNorm(size_targets).to(input_values.device)
             # Perform subtraction operation
-            vector_distances = th.norm(targets.unsqueeze(1) - expanded_code_book_subset, dim= -1)
+            vector_distances = layer_norm_t(targets) - layer_norm_c(expanded_code_book_subset)
             labels = th.argmin(vector_distances, dim=-1)
 
         return labels
