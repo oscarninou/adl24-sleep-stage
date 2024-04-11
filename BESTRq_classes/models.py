@@ -243,3 +243,37 @@ class CNN_multiproj(nn.Module):
         x = self.fc4(x)
         x = x.view(-1, self.quantizer_dim, self.codebook_size)
         return x
+
+
+class BiLSTM(nn.Module):
+    """GRUPredictor is a recurrent model. It takes as input a vector and predict
+    the next one given past observations."""
+    def __init__(self, input_dim=1, hidden_dim=50, nstack = 3, dropout=0.3):
+        super(BiLSTM, self).__init__()
+        self.input_dim = input_dim
+        self.hidden_dim = hidden_dim
+        self.nstack = nstack
+        self.dropout = dropout
+        self.lstm = nn.LSTM(input_size = input_dim, hidden_size = hidden_dim, num_layers = nstack, bias=True, batch_first=False, dropout=0.4, bidirectional=True)
+        self.drop = nn.Dropout(p = dropout)
+        self.linear = nn.Linear(2*hidden_dim*100, 5)
+
+    def init_hidden(self, bsz):
+        # Initialize hidden state for LSTM
+        return (th.zeros(2 * self.nstack, bsz, self.hidden_dim),
+                th.zeros(2 * self.nstack, bsz, self.hidden_dim))
+
+
+    def forward(self, inputs, h0=None):
+        if h0 is None:
+            (h0, c0) = self.init_hidden(inputs.shape[1])  # Use size(1) to get the batch size
+
+        h0, c0 = h0.to(inputs.device), c0.to(inputs.device)
+        lstm_output, _ = self.lstm(inputs, (h0, c0))
+
+        out = self.drop(lstm_output)
+
+        out = out.flatten(start_dim = 1)
+
+        out = self.linear(out)
+        return out

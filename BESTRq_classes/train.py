@@ -139,7 +139,7 @@ def pretrain(training_data, valid_data, model , BestRQ, ratio_dataset = 2, epoch
 
 
 
-def train_decoder(training_data, valid_data, decoder,encoder, epochs=10, lr=1e-3, device = 'cpu', raw_signal = True, batch_size = 500, device_for_proj = True):
+def train_decoder(training_data, valid_data, decoder,encoder, epochs=10, lr=1e-3, device = 'cpu', raw_signal = True, batch_size = 500, device_for_proj = True, bestrq = False):
 
     xtrain, ytrain= training_data
     xvalid, yvalid = valid_data
@@ -189,7 +189,11 @@ def train_decoder(training_data, valid_data, decoder,encoder, epochs=10, lr=1e-3
                 inputs, labels = inputs.to(device), labels.to(device)
             encoder_outs = encoder(inputs)
             preds = decoder(encoder_outs)
-            loss = loss_function(preds, labels.view(-1))
+            if bestrq:
+                loss = loss_function(preds, labels.long())
+            else:
+
+                loss = loss_function(preds, labels.view(-1))
             loss.backward()
             optimizer.step()
             # Compute accuracy
@@ -221,7 +225,12 @@ def train_decoder(training_data, valid_data, decoder,encoder, epochs=10, lr=1e-3
                     inputs, labels = inputs.to(device), labels.to(device)
                 encoder_outs = encoder(inputs)
                 preds = decoder(encoder_outs)
-                loss = loss_function(preds, labels.view(-1))
+                if bestrq:
+                    loss = loss_function(preds, labels.long())
+                else:
+
+                    loss = loss_function(preds, labels.view(-1))
+                loss.backward()
                 epoch_valid_loss += loss.item()
 
                 # Compute accuracy
